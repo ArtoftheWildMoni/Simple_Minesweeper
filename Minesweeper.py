@@ -19,12 +19,10 @@ import logging #logging.warning(function name, lists, etc)
 #clicking -1 doesn't reveal all cells (change this to reveal bomb cells)(SOLVED)
 #Open bomb cells instead of empty cells upon game end (SOLVED)
 #fix bomb graphic code placement error (SOLVED)
+#reveal 0 adjacent cells function, adjust to open all 0 cells using a new coordinates function(Fixed)
 
-#ERRORS
 
-#ToDO
-#remove "flag" when game over or win
-#reveal 0 adjacent cells function, adjust to open all 0 cells using a new coordinates function(NOT FIXED)
+
 
 GAME_STATE = "progressing"
 canvas = None
