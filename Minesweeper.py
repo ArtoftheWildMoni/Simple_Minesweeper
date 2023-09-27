@@ -1,4 +1,4 @@
-import logging  # logging.warning(function name, lists, etc)
+import logging
 import math
 import random
 import tkinter as tk
@@ -12,20 +12,18 @@ POSITION = {"x": 8, "y": 8}
 BORDER_WIDTH = 2
 NUMBER = 20
 LENGTH = SQUARE_LENGTH * NUMBER + BORDER_WIDTH * NUMBER
-MAX_NUM_FLAG = 40
-BOMBS_COUNT = 40
+MAX_NUM_FLAG = 50
+BOMBS_COUNT = 10
 
 field = [[0 for _ in range(NUMBER)] for _ in range(NUMBER)]
 opened = [[False] * NUMBER for _ in range(NUMBER)]
 flags = [[False] * NUMBER for _ in range(NUMBER)]
 
-def initialize_mines():
-  # bomb = -1
+def initialize_mines(): # bomb = -1
   global field
   field = [[0] * NUMBER for _ in range(NUMBER)]
 
-  # Place mines randomly
-  for _ in range(BOMBS_COUNT):
+  for _ in range(BOMBS_COUNT): #爆弾設置
     x = random.randint(0, NUMBER - 1)
     y = random.randint(0, NUMBER - 1)
     while field[y][x] == -1:
@@ -39,7 +37,7 @@ def set_field():
 
   for i in range(NUMBER):
     for j in range(NUMBER):
-      # Call set_item to render empty cell appearance
+      
       set_item(None, i, j)
 
       x = POSITION["x"] + SQUARE_LENGTH * (i + 1) + BORDER_WIDTH * i + BORDER_WIDTH
@@ -53,7 +51,6 @@ def set_item(kind, x, y):
 
   if opened[y][x]:
     canvas.create_rectangle(center_x - SQUARE_LENGTH / 2, center_y - SQUARE_LENGTH / 2, center_x + SQUARE_LENGTH / 2, center_y + SQUARE_LENGTH / 2, fill="#fff", width=0)
-    # 開けたますの色が白だと文字の色と被って何も見えないので黒に変更
 
     if kind != None:
       if kind == "bomb":
@@ -79,12 +76,12 @@ def create_canvas():
 
   return root, canvas
 
-def get_eight_cells():
+def get_eight_cells(): #クリックした周りのセル
     return [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]]
 
-def cell_counts():
-  # fieldはグローバル変数だから呼び出す時はいいけど代入する時は下のコードを入れないと関数内のローカル変数に代入されて変更が反映されない
+def cell_counts(): #空きセルに表示する番号取得
   global field
+  
   for y in range(NUMBER):
     for x in range(NUMBER):
       bombs_count = count_bombs(x, y)
@@ -95,13 +92,12 @@ def count_bombs(x, y, first_click=False):
   bombs_count = 0
   cells_around = get_eight_cells()
 
-  for offset in cells_around:
+  for offset in cells_around: #offset＝該当するものの周り、ズレた位置という意味
     dx, dy = offset
-    nx, ny = x + dx, y + dy
+    nx, ny = x + dx, y + dy #dx,dy=隣り合うセルまでに距離、nx,ny=隣り合うセルの位置
 
     if 0 <= nx < NUMBER and 0 <= ny < NUMBER:
-      if first_click and field[ny][nx] == -1:
-        # Ensure the first click cell is not a bomb
+      if first_click and field[ny][nx] == -1: #最初のセルが爆弾だった場合は変更
         return 0
       if field[ny][nx] == -1:
         bombs_count += 1
@@ -114,10 +110,9 @@ def open_zero_around_cells(x, y):
   for dx, dy in eight_cells:
     nx, ny = x + dx, y + dy
     if 0 <= nx < NUMBER and 0 <= ny < NUMBER:
-      # 爆弾のますに対しては何もしないようにしないと爆弾のますの旗が消えてしまう
       if not field[ny][nx] == -1 and not opened[ny][nx]:
         if flags[ny][nx]:
-          clear_flag(nx, ny)  # Clear flag
+          remove_flag(nx, ny) 
         opened[ny][nx] = True
         if field[ny][nx] == 0:
           set_item(None, nx, ny)
@@ -126,51 +121,43 @@ def open_zero_around_cells(x, y):
           set_item(str(field[ny][nx]), nx, ny)
 
 def open_cell(x, y):
-    global GAME_STATE
-    global opened
+  global GAME_STATE
+  global opened
 
-    if opened[y][x] or flags[y][x] or GAME_STATE == "lost":
-        return
+  if opened[y][x] or flags[y][x] or GAME_STATE == "lost" or GAME_STATE == "won":
+    return
 
-    if GAME_STATE == "start":
-        logging.warning("Before moving bombs")
-        move_bombs(x, y)
-        logging.warning("After moving bombs")
-        GAME_STATE = "progressing"
+  check_game_state(x, y)
 
-    # ここでopenにすると爆弾か確認する前にロジック上は開いてしまう？
-    opened[y][x] = True
+def check_game_state(x, y):
+  global GAME_STATE
+  global opened
+  if GAME_STATE == "start": #初手であるかをGAMESTATEで判断
+    move_bombs(x, y)
+    GAME_STATE = "progressing"
 
-    bombs_around_cell = count_bombs(x, y, first_click=(GAME_STATE == "start"))
+  opened[y][x] = True
+  bombs_around_cell = count_bombs(x, y, first_click=(GAME_STATE == "start"))
 
-    # この条件式だと押したところが爆弾でも周りに爆弾がない限りNoneのマスが開かれる
-    # if bombs_around_cell == 0:
-    if bombs_around_cell == 0 and field[y][x] != -1:
-        set_item(None, x, y)
-        open_zero_around_cells(x, y)
-    elif field[y][x] == -1:
-        set_item("bomb", x, y)
-        end_game()
-        GAME_STATE = "lost"
-    else:
-        set_item(field[y][x], x, y)
+  if bombs_around_cell == 0 and field[y][x] != -1:
+    set_item(None, x, y)
+    open_zero_around_cells(x, y)
+  elif field[y][x] == -1:
+    set_item("bomb", x, y)
+    game_over()
+  else:
+    set_item(field[y][x], x, y)
 
-    check_win()
-    if GAME_STATE == "won":
-        print("Game Clear")
-
-    if opened[y][x] and flags[y][x]:
-        set_item(field[y][x], x, y)  # Restore the original state of the cell
+  check_win()
 
 def move_bombs(x, y):
   global field
   logging.warning(f"clicked positions: {x}, {y}")
-  # Step 1: Find the bombs in adjacent cells
-  check_cells = get_eight_cells()  # Get the adjacent cell coordinates
-  check_cells.append([0, 0])
-  adjacent_bombs = []  # Initialize a list to store bombs in adjacent cells
+  check_cells = get_eight_cells()  
+  check_cells.append([0, 0]) #元の関数にクリックしてる中心のセルも確認するように追加
+  adjacent_bombs = []  
 
-  coordinates = []
+  coordinates = [] #座標
   for dx, dy in check_cells:
     nx, ny = x + dx, y + dy
     coordinates.append([nx, ny])
@@ -178,36 +165,23 @@ def move_bombs(x, y):
     if 0 <= nx < NUMBER and 0 <= ny < NUMBER and field[ny][nx] == -1:
       adjacent_bombs.append((nx, ny))
 
-  # Step 2: Remove the bombs from their current positions (both visually and logically)
-  for bomb_x, bomb_y in adjacent_bombs:
-    field[bomb_y][bomb_x] = 0  # Clear the bomb from the logical field
-    # set_item(None, bomb_x, bomb_y)  # Clear the bomb visually
-    # この時点では表示はする必要ない
-
+  for bomb_x, bomb_y in adjacent_bombs: #ロジックで爆弾の消去
+    field[bomb_y][bomb_x] = 0  
   logging.warning(f"bombs need to move positions: {adjacent_bombs}")
+  new_bomb_positions = generate_new_bomb_positions(adjacent_bombs, x, y, coordinates) #爆弾の新しい場所
 
-  # Step 3: Generate new positions for the bombs
-  new_bomb_positions = generate_new_bomb_positions(adjacent_bombs, x, y, coordinates)
-
-  # Step 4: Place the bombs in their new positions (both visually and logically)
   for new_x, new_y in new_bomb_positions:
-    field[new_y][new_x] = -1  # Set the bomb in the logical field
-    # set_item("bomb", new_x, new_y)  # Display the bomb visually
-    # この時点では表示はする必要ない
+    field[new_y][new_x] = -1 
     logging.warning(f"new bomb positions: {new_y}, {new_x}")
 
-  # 数を数え直す
-  cell_counts()
+  cell_counts()# 数を数え直す
 
-def generate_new_bomb_positions(adjacent_bombs, clicked_x, clicked_y, coordinates):
+def generate_new_bomb_positions(adjacent_bombs, x, y, coordinates): #xyは押したセルにまた爆弾が置かれないようにこの情報が必要、ここ消すとエラー
   new_bomb_positions = []
-  # Define the range of valid positions
   valid_positions = [(x, y) for x in range(NUMBER) for y in range(NUMBER) if not [x, y] in coordinates and field[y][x] != -1]
-  # Shuffle the valid positions randomly
   random.shuffle(valid_positions)
   print("regenerated")
-  # Take the first N valid positions to place the bombs
-  for i in range(len(adjacent_bombs)):
+  for i in range(len(adjacent_bombs)): #adjacent=隣り合う
     if i < len(valid_positions):
       new_bomb_positions.append(valid_positions[i])
       logging.warning(f"New bomb position: ({valid_positions[i][0]}, {valid_positions[i][1]})")
@@ -215,47 +189,43 @@ def generate_new_bomb_positions(adjacent_bombs, clicked_x, clicked_y, coordinate
   return new_bomb_positions
 
 def check_win():
-  """
-  Check if the player has won the game.
-  If all non-mine cells are opened, set GAME_STATE to "won".
-  """
   for y in range(NUMBER):
     for x in range(NUMBER):
-        if field[y][x] != -1 and not opened[y][x]:
-            return
+      if field[y][x] != -1 and not opened[y][x]:
+        return
   global GAME_STATE
   GAME_STATE = "won"
+  print("Game Clear")
 
-def end_game():
+def game_over():
+  global GAME_STATE
   global flags
+
   for y in range(NUMBER):
     for x in range(NUMBER):
-        if flags[y][x]:
-            flags[y][x] = False
+      if flags[y][x]:
+        flags[y][x] = False
 
   open_bomb_cells()
+  GAME_STATE = "lost" 
+  print("Game Over") 
 
 def open_bomb_cells():
   for y in range(NUMBER):
-      for x in range(NUMBER):
-          if field[y][x] == -1:
-              open_cell(x, y)
+    for x in range(NUMBER):
+      if field[y][x] == -1:
+        open_cell(x, y)
 
 def click(event):
   x, y = point_to_numbers(event.x, event.y)
 
-  if event.num == 1:  # Left mouse button
+  if event.num == 1:  # 左クリック
     open_cell(x, y)
-  elif event.num == 2:  # Right mouse button
-    if flags[y][x]:
-      remove_flag(x, y)  # Remove flag　
-      logging.warning(f"remove_flag: {y}, {x}")
-    else:
-      place_flag(x, y)  # Place flag
-# 旗周りの関数が多すぎる
-# placeとremoveをtoggleから呼ぶ形にしてclickからはtoggleのみ呼ぶようにするとか？
+  elif event.num == 2:  # 右クリック
+    toggle_flag(x, y)
+
 def place_flag(x, y):
-  global MAX_NUM_FLAG  # Use the global variable
+  global MAX_NUM_FLAG  
   global flags
 
   if opened[y][x] or MAX_NUM_FLAG <= 0:
@@ -279,28 +249,26 @@ def place_flag(x, y):
   canvas.create_polygon(flagstick_x, flagstick_bottom, center_x + RADIUS, center_y, flagstick_x, polygon_top, fill="red")  # Flag
 
 def toggle_flag(x, y):
-  global MAX_NUM_FLAG  # Use the global variable
+  global MAX_NUM_FLAG  
+  global GAME_STATE
 
-  if opened[y][x]:
+  if opened[y][x] or GAME_STATE == "lost" or GAME_STATE == "won":
     return
 
   if flags[y][x]:
-    clear_flag(x, y)
-    # Increase the remaining number of flags
+    remove_flag(x, y)
   elif MAX_NUM_FLAG > 0:
     place_flag(x, y)
-    # Decrease the remaining number of flags
 
 def remove_flag(x, y):
   global MAX_NUM_FLAG
-  global flags
+
   if opened[y][x] or not flags[y][x]:
     return
 
-  global MAX_NUM_FLAG
   flags[y][x] = False
   MAX_NUM_FLAG += 1
-
+  opened[y][x] = False  
   clear_flag_image(x, y)
 
 def clear_flag_image(x, y):
@@ -317,15 +285,10 @@ def clear_flag_image(x, y):
     fill="#aaa",
     width=0
   )
-
   if field[y][x] == -1:
     set_item("bomb", x, y)
   elif field[y][x] != 0:
     set_item(str(field[y][x]), x, y)
-
-def clear_flag(x, y):
-  opened[y][x] = False
-  remove_flag(x, y)  # Call remove_flag to update the flags and flag count
 
 def play():
   global canvas
